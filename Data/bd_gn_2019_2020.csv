@@ -1,0 +1,19 @@
+date ,site,gear,wind,surface_temp,crew,start_time,end_time,lat_start,long_start,lat_end,long_end,start_depth,end_depth,basin,species,tag_no,tl_mm,fl_mm,girth_mm,wt_g,fin_scales_muscle,sex,stomach,vtag,maxillary,age_est,comments
+11-Oct-19,,gn,,,,,,,,,,,,,lt ,5,466,435,233,,y,m,,no,yes,7,
+11-Oct-19,,gn,,,,,,,,,,,,,lt ,6,262,250,101,,y,im,,no,yes,3,
+11-Oct-19,,gn,,,,,,,,,,,,,lt ,7,492,468,245,,y,f,,no,yes,8,
+15-Oct-19,set of entrance to channel south indian island near rec 1,,,,,13:00,15:00,,,,,38,45,East Basin,lt,07464,456,414,195,729,y,m,no,no,yes,10,
+15-Oct-19,set of entrance to channel south indian island near rec 1,,,,,13:00,15:00,,,,,38,45,East Basin,lt,07463,425,393,195,,y,f,yes ,no,yes,6,mature female with ripe eggs 
+15-Oct-19,set of entrance to channel south indian island near rec 1,,,,,13:00,15:00,,,,,38,45,East Basin,lt,07462,451,415,225,,y,m,no,no,yes,7,mature male with milt
+21-Oct-19,Entrance to S. indian ilsand channel east end ,,,,,18:00,20:00,,,,,,,East Basin,lt,07459,465,430,235,,y,f,no,no,yes,9,
+21-Oct-19,,,,,,18:30,19:30,,,,,,,East Basin,lt,07975,500,455,230,1135,y,m,no,yes,yes,7,Tagged male from spring 2019 from north basin caught in net and killed
+26-Sep-20,central west basin1,gn,6 km/h s ,15.8,"ben, danny, jess, auston",10:00,12:00,45.81574,-74.78552,45.81614,-74.78519,40,45,West Basin,lt,07985,455,420,215,830,y,,yes ,no,yes,7,
+26-Sep-20,central west basin1,gn,6 km/h s ,15.8,"ben, danny, jess, auston",10:00,12:00,45.81574,-74.78552,45.81614,-74.78519,40,45,West Basin,lt,07986,505,460,235,1050,y,,yes ,no,yes,14,
+26-Sep-20,central west basin1,gn,6 km/h s ,15.8,"ben, danny, jess, auston",10:00,12:00,45.81574,-74.78552,45.81614,-74.78519,40,45,West Basin,lt,07987,485,445,265,1135,y,,yes ,no,yes,14,
+26-Sep-20,central west basin2,gn,5 km/h s ,15.7,"ben, danny, jess, auston",10:13,12:15,45.81632,-74.78456,45.81663,-74.78456,45,35,West Basin,lt,07988,427,384,195,610,y,,no,no,yes,8,
+26-Sep-20,central west basin2,gn,5 km/h s ,15.7,"ben, danny, jess, auston",10:13,12:15,45.81632,-74.78456,45.81663,-74.78456,45,35,West Basin,lt,07989,376,340,160,375,y,,no,no,yes,5,
+26-Sep-20,central west basin2,gn,5 km/h s ,15.7,"ben, danny, jess, auston",10:13,12:15,45.81632,-74.78456,45.81663,-74.78456,45,35,West Basin,lt,07990,471,427,225,930,y,,no,no,yes,6,
+26-Sep-20,salt and pepper island ,gn,5 km/h s ,16,"ben, danny, jess, auston",13:30,14:30,45.75729,-74.7551,45.79767,-74.75469,54,82,East Basin,lt,07991,435,400,194,750,y,,no,no,yes,8,
+26-Sep-20,central west basin,gn,,16.4,"ben, danny, jess, auston",,,45.81649,-74.78459,,,57,,West Basin,lt,07992,465,420,210,780,y,,no,no,yes,7,
+26-Sep-20,central west basin,gn,,16.4,"ben, danny, jess, auston",,,45.81649,-74.78459,,,57,,West Basin,lt,07993,495,450,230,975,y,,no,no,yes,9,
+26-Sep-20,central west basin,gn,,16.4,"ben, danny, jess, auston",14:30,,45.8156,-74.78491,45.81562,-74.78491,83,58,West Basin,lt,07994,600,550,295,2050,y,f,yes ,no,yes,25,
