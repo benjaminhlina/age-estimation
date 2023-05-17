@@ -8,6 +8,7 @@ library(ggplot2)
 library(ggridges)
 library(ggExtra)
 library(ggmcmc)
+library(openxlsx)
 library(postpack)
 library(patchwork)
 library(purrr)
@@ -21,6 +22,15 @@ lt_slim <- read_rds(here("Saved Data",
                          "cleaned_length_at_age_raw.rds"))
 
 glimpse(lt_slim)
+
+lt_slim <- lt_slim %>% 
+  mutate(
+    wt_g = if_else(is.na(wt_g), true = 
+                       round((10 ^ (-5.218126 +  3.038077 * log10(tl_mm))), 
+                             digits = 0),
+                     false = wt_g), 
+  )
+
 # ---- plot the data -----
 
 
@@ -31,11 +41,31 @@ ggplot(data = lt_slim, aes(x = age_est, y = tl_mm)) +
        y = "Total Length (mm)")
 
 
-  ggplot(data = lt_slim, aes(x = age_est, y = tl_mm)) +
+ggplot(data = lt_slim, aes(x = age_est, y = tl_mm)) +
   geom_point(alpha = 0.45, size = 3, aes(colour = basin)) +
   theme_classic() + 
   labs(x = "Estimated Age (Yr)", 
        y = "Total Length (mm)")
+
+
+
+
+lt_sum <- lt_slim %>% 
+  summarise(
+    mean_tl = mean(tl_mm),
+    sem_tl = sd(tl_mm) / sqrt(n()),
+    mean_fl = mean(fl_mm), 
+    sem_fl = sd(fl_mm) / sqrt(n()),
+    mean_wt = mean(wt_g, ), 
+    sem_wt = sd(wt_g) / sqrt(n())
+  )
+
+lt_sum  
+
+write.xlsx(lt_sum, here("Results", 
+                        "summary_morpho_age_fish.xlsx"))
+
+
 
 # ---- compile data into a list for JAGS -----
 
@@ -384,12 +414,12 @@ ggplot(rand_length_df, aes(x = rand_length)) +
   geom_density(aes(
     colour = age_pred_f
     # fill = age_pred_f
-    ), alpha = 0.25, 
-               linewidth = 0.8, 
-    # colour = "black"
-    ) + 
+  ), alpha = 0.25, 
+  linewidth = 0.8, 
+  # colour = "black"
+  ) + 
   scale_colour_viridis_d(begin = 0.25, end = 0.85, 
-                       option = "D", "Estimated Age (Yr)") + 
+                         option = "D", "Estimated Age (Yr)") + 
   # scale_fill_viridis_d(begin = 0.25, end = 0.85, 
   #                      option = "D", "Estimated Age (Yr)") + 
   theme_bw(base_size = 15) + 
@@ -402,7 +432,7 @@ ggplot(rand_length_df, aes(x = rand_length)) +
   guides(
     # fill = guide_legend(ncol = 2)
     colour = guide_legend(ncol = 2)
-    ) + 
+  ) + 
   labs(x = "Total Length (mm)", 
        y = "Density") -> p3
 p3
@@ -412,7 +442,7 @@ ggsave(filename = here("Plots",
        plot = p3, height = 8.5, width = 11)
 
 write_rds(p3, here("Saved Plots", 
-                  "posterior distribution_lkt_age_length.rds"))
+                   "posterior distribution_lkt_age_length.rds"))
 
 # facet densities 
 ggplot(rand_length_df, aes(x = rand_length)) + 
@@ -441,8 +471,8 @@ ggplot(rand_length_df, aes(x = rand_length)) +
 ggplot(rand_length_df, aes(x = rand_length)) + 
   geom_density_ridges(
     aes(
-        y = age_pred_f, 
-        fill = age_pred_f), 
+      y = age_pred_f, 
+      fill = age_pred_f), 
     # linewidth = 1
   ) + 
   scale_x_continuous(breaks = seq(0, 1200, 100)) + 
