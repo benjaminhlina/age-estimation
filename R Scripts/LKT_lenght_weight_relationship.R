@@ -112,6 +112,7 @@ lt_slim <- lt_slim %>%
 
 glimpse(lt_2021)
 # select columns we need from 2021 to join with 2020 collection 
+
 lt_2021_s <- lt_2021 %>% 
   select(basin:comments)
 
@@ -119,7 +120,6 @@ lt_2021_s <- lt_2021_s %>%
   select(tag_id, basin, tl_mm, fl_mm, girth_mm, wt_g) %>% 
   rename(tag_no = tag_id) %>% 
   mutate(year = 2021)
-
 
 # ---- bind gn lt 2020 and 2021
 lt_tot <- bind_rows(lt_slim, lt_2021_s)
@@ -175,9 +175,9 @@ summary(m)
 
 glance(m)
 tidy(car::Anova(m))
+tidy(m)
 
-
-
+summary(m)
 
 
 # ---- predict -----
@@ -220,6 +220,8 @@ han_lw_wide <- han_lw %>%
     )
 
 han_lw_wide
+
+
 han_pred <- expand_grid(
   han_lw_wide,
   tl = seq(0, 770, 10)
@@ -233,6 +235,20 @@ han_pred <- expand_grid(
 han_pred_max <- han_pred %>% 
   filter(wt < 5250 & 
            percentile %in% c("25", "50", "75", "97.5"))
+
+# ---- compare percentiles -----
+pap_coef <- tibble(
+  n = 1, 
+  percentile = "Lake Papineau", 
+  log_a = coef(m)[1],
+  b = coef(m)[2]
+)
+
+comb_coef <- bind_rows(han_lw_wide, pap_coef)
+
+
+
+comb_coef
 # ---- plot ------ 
 ggplot(data = predicts) + 
   geom_point(aes(x = tl_log, y = wt_log, 
@@ -337,7 +353,7 @@ ggplot(data = predicts) +
     x = "Total Length (mm)", 
     y = "Weight  (g)"
   ) -> p2
-# p2
+p2
 
 
 ggsave(here("Plots",
