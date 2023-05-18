@@ -1,6 +1,7 @@
 # ---- bring in packages -----
 {
   library(broom)
+  library(broom.mixed)
   library(boot)
   library(car)
   library(data.table)
@@ -11,6 +12,7 @@
   library(here)
   library(lubridate)
   library(lemon)
+  library(lme4)
   library(openxlsx)
   library(readr)
   library(stringr)
@@ -165,11 +167,23 @@ lt_tot_v <- lt_tot %>%
 # ---- run the regression ----- 
 
 m <- lm(wt_log ~ tl_log, data = lt_tot)
+# m2 <- lm(wt_log ~ tl_log * year, data = lt_tot)
 
 
 car::Anova(m)
 anova(m)
 summary(m)
+
+# car::Anova(m2)
+# anova(m2)
+# summary(m2)
+# 
+# 
+# m1 <- lmer(wt_log ~ tl_log + (1|year), data = lt_tot)
+# 
+# car::Anova(m1, type = "III")
+# anova(m1)
+# summary(m1)
 
 # ---- model outputs -----
 
@@ -178,6 +192,13 @@ tidy(car::Anova(m))
 tidy(m)
 
 summary(m)
+# 
+# glance(m1)
+# tidy(car::Anova(m))
+# 
+# tidy(m1)
+# 
+# summary(m1)
 
 
 # ---- predict -----
