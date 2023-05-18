@@ -245,13 +245,15 @@ han_lw_wide
 
 han_pred <- expand_grid(
   han_lw_wide,
-  tl = seq(0, 770, 10)
+  tl_mm = seq(0, 770, 1)
 ) %>% 
   mutate(
-    log_tl = log10(tl), 
+    log_tl = log10(tl_mm), 
     log_w = log_a + (b * log_tl), 
     wt = 10 ^ log_w
   )
+
+
 
 han_pred_max <- han_pred %>% 
   filter(wt < 5250 & 
@@ -266,10 +268,73 @@ pap_coef <- tibble(
 )
 
 comb_coef <- bind_rows(han_lw_wide, pap_coef)
-
-
-
 comb_coef
+
+# ---- From Hansen et al. 2021 we can calculate Kn ----
+# to represent overall health 
+
+# first grab the mean or 50 percentile 
+
+han_pred_50 <- han_pred %>% 
+  filter(percentile == "50")
+
+han_pred
+
+
+# join with lt_tot by tl_mm, han_pred has to be from every mm 
+dat_k <- lt_tot %>% 
+  left_join(han_pred, by = "tl_mm")
+
+# calculate Kn by dividing our observed weights to 50% predicted weights 
+
+
+dat_k <- dat_k %>% 
+  mutate(
+    kn = wt_g / wt
+  ) %>% 
+  filter(kn != is.na(kn) & basin != is.na(basin))
+
+
+# ---- evaulate kn disturbion and calculate general stats ---- 
+ggplot(data = dat_k, aes(x = kn)) + 
+  geom_histogram() + 
+  facet_wrap(.~ percentile, scales = "free_x")
+
+dat_k_50 <- dat_k %>% 
+  filter(percentile %in% "50")
+# ---- create model to assess if Kn changes with length ----- 
+
+m4 <- lm(kn ~ tl_mm * basin, dat_k_50)
+m5 <- lm(kn ~ tl_mm * percentile, dat_k)
+plot(m4)
+
+
+car::Anova(m4, type = "III")
+summary(m4)
+
+car::Anova(m5, type = "III")
+summary(m5)
+# Kn changes with length 
+
+# ---- summary table of Kn ---- 
+
+kn_sum <- dat_k_50 %>% 
+  filter(basin != is.na(basin) & kn != is.na(basin)) %>% 
+  # group_by(
+  #   basin
+  # ) %>% 
+  summarise(
+    
+    mean_kn = mean(kn), 
+    sd_kn = sd(kn), 
+    sem_kn = sd(kn) / sqrt(n()),
+    n = n(), 
+  )
+
+
+kn_sum
+
+
 # ---- plot ------ 
 ggplot(data = predicts) + 
   geom_point(aes(x = tl_log, y = wt_log, 
@@ -349,7 +414,7 @@ ggplot(data = predicts) +
         x = tl_mm, y = anti_fit), alpha = 0.25) +
   geom_line(
     data = han_pred_max, 
-    aes(x = tl, y = wt, linetype = percentile)
+    aes(x = tl_mm, y = wt, linetype = percentile)
   ) + 
   scale_colour_viridis_d(name = "Year", 
                          begin = 0.17, end = 0.8, alpha = 0.7) + 
@@ -382,4 +447,56 @@ ggsave(here("Plots",
             "LKT_length_weight_non_transform_regress.png"), 
        plot = p2, 
        width = 11, 
+       height = 8.5)
+
+# ---- plot Kn vs length ----- 
+ggplot(data = dat_k_50, aes(y = kn, x = tl_mm)) +
+  geom_hline(yintercept = 1, linetype = 2) + 
+  # stat_smooth(method = "lm") + 
+  geom_point(size = 4, aes(colour = basin)
+             ) + 
+  scale_colour_viridis_d(name = "Basin", 
+                         begin = 0.35, end = 0.75, alpha = 0.7) +
+  scale_x_continuous(breaks = seq(100, 700, 100)) + 
+  theme_bw(base_size = 15) + 
+  theme(panel.grid = element_blank(), 
+        legend.position = c(0.07, 0.90)
+  ) +
+  labs(
+    x = "Total Length (mm)", 
+    y = expression(K[n]) 
+  ) -> p3 
+
+p3
+ggsave(here("Plots",
+            "length weight relationship",
+            "LKT_length_weight_Kn.png"), 
+       plot = p3, 
+       width = 11, 
+       height = 8.5)
+
+ggplot(data = dat_k, aes(y = kn, x = tl_mm)) +
+  # geom_hline(yintercept = 1, linetype = 2) + 
+  # stat_smooth(method = "lm") + 
+  geom_point(size = 4, aes(colour = basin)
+             ) + 
+  scale_colour_viridis_d(name = "Basin", 
+                         begin = 0.35, end = 0.75, alpha = 0.7) +
+  scale_x_continuous(breaks = seq(100, 700, 100)) + 
+  facet_wrap(.~ percentile, scales = "free_y") + 
+  theme_bw(base_size = 15) + 
+  theme(panel.grid = element_blank(), 
+        legend.position = c(0.05, 0.91)
+  ) +
+  labs(
+    x = "Total Length (mm)", 
+    y = expression(K[n]) 
+  ) -> p4
+
+# p4
+ggsave(here("Plots",
+            "length weight relationship",
+            "LKT_length_weight_Kn_percentile.png"), 
+       plot = p4, 
+       width = 11 * 1.25, 
        height = 8.5)
