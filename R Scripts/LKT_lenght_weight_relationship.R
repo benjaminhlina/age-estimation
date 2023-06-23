@@ -303,17 +303,36 @@ ggplot(data = dat_k, aes(x = kn)) +
 dat_k_50 <- dat_k %>% 
   filter(percentile %in% "50")
 # ---- create model to assess if Kn changes with length ----- 
+fitdistrplus::descdist(dat_k_50$kn)
 
-m4 <- lm(kn ~ tl_mm * basin, dat_k_50)
-m5 <- lm(kn ~ tl_mm * percentile, dat_k)
-plot(m4)
+t <- fitdistrplus::fitdist(data = dat_k_50$kn, distr = "gamma",
+                           method = "mme")
+ts <- fitdistrplus::fitdist(data = dat_k_50$kn, distr = "norm", 
+                           # method = "mme"
+                           )
+
+plot(t)
+plot(ts)
+
+# ---- model using GAMMA ---- 
+m5 <- glm(kn ~ tl_mm * basin, data = dat_k_50,
+          contrasts = list(basin = "contr.sum"),
+          
+          family = Gamma(link = "identity"))
 
 
-car::Anova(m4, type = "III")
-summary(m4)
+par(mfrow = c(2, 2))
+plot(m5)
+par(mfrow = c(1, 1))
+res <- DHARMa::simulateResiduals(m5)
+plot(residuals(m5))
+hist(residuals(m5))
+plot(res)
+
 
 car::Anova(m5, type = "III")
 summary(m5)
+
 # Kn changes with length 
 
 # ---- summary table of Kn ---- 
@@ -500,3 +519,9 @@ ggsave(here("Plots",
        plot = p4, 
        width = 11 * 1.25, 
        height = 8.5)
+
+
+
+unique(han$metric)
+
+
