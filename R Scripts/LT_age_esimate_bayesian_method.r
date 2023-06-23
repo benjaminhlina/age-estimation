@@ -13,6 +13,7 @@ library(postpack)
 library(patchwork)
 library(purrr)
 library(readr)
+library(stringr)
 library(tibble)
 library(tidyr)
 
@@ -26,11 +27,22 @@ glimpse(lt_slim)
 lt_slim <- lt_slim %>% 
   mutate(
     wt_g = if_else(is.na(wt_g), true = 
-                       round((10 ^ (-5.218126 +  3.038077 * log10(tl_mm))), 
-                             digits = 0),
-                     false = wt_g), 
+                     round((10 ^ (-5.218126 +  3.038077 * log10(tl_mm))), 
+                           digits = 0),
+                   false = wt_g), 
   )
 
+han <- read_csv(here("Data", 
+                     "lake_charr_life_history_metric_muir_2021.csv")) %>%
+  pivot_longer(cols = -c(Metric, n), 
+               names_to = "percentile",
+               values_to = "value") %>% 
+  mutate(
+    percentile = as.factor(str_remove(percentile, "%"))
+  ) %>% 
+  janitor::clean_names()
+
+han
 # ---- plot the data -----
 
 
@@ -296,11 +308,53 @@ pred_lenght_df_wide <- pred_length_df %>%
 post_summ_coef %>% 
   filter(metric %in% "50%") -> model_fit
 
+openxlsx::write.xlsx(post_summ_coef, here(
+  "Results", 
+  "von_b_Bayes_estiamtes.xlsx"
+))
+
+write_rds(model_fit, here("Saved Data", 
+                          "vb_param_bayes.rds"))
 mfl <- model_fit %>% 
   pivot_longer(cols = -metric, 
                names_to = "coefficient",
                values_to = "est")
 mfl
+
+
+# ---- bring in quantile regressions data ------
+#
+han_vb_wide <- han %>% 
+  filter(metric %in% c("L1", "t0", "K")) %>% 
+  dplyr::select(-n) %>% 
+  pivot_wider(
+    names_from = metric, values_from = value
+  ) %>% 
+  rename(
+    l_inf = L1, 
+    k = K
+  ) %>% 
+  mutate(
+    t0 = (as.numeric(gsub("\\–", "", t0)) * -1),
+    k = as.numeric(k),
+    l_inf = as.numeric(l_inf)
+  )
+
+han_vb_25_75 <- han_vb_wide %>% 
+  filter(percentile %in% c("25", "50", "75")) %>% 
+  mutate(
+    percentile = fct_rev(percentile)
+  )
+
+pred_vb <- expand_grid(
+  han_vb_25_75,
+  age = seq(0, 26, 0.5)
+) %>% 
+  mutate(
+    # age_est = (log(1 - (tl / l_inf)) / -k ) + t0
+    tl = l_inf * (1 - exp(-k *(age - t0))) 
+  )
+
 # extract each parmater indivually to put von B. curve exquation on plot
 linf <- formatC(model_fit$linf, format="f", digits = 0)
 k <- formatC(model_fit$k, format = "f", digits = 3)
@@ -312,11 +366,24 @@ t0 <- paste0(ifelse(t0 < 0, "+", "-"), formatC(abs(t0), format = "f",
 labels <- paste("TL ==", linf,"~bgroup('(',1-e^{-", k,"~(age", t0,")},')')")
 
 # to grab the correct colour 
-alpha_col <- function(color_name, alpha = 0.35) {
-  rgb <- col2rgb(color_name)
-  rgb(rgb[1], rgb[2], rgb[3], max = 255, alpha = (1 - alpha) * 255)
-}
+# alpha_col <- function(color_name, alpha = 0.35) {
+#   rgb <- col2rgb(color_name)
+#   rgb(rgb[1], rgb[2], rgb[3], max = 255, alpha = (1 - alpha) * 255)
+# }
 # ---- plot Bayes Von B curve using ggplot -----  
+
+write_rds(pred_lenght_df_wide,
+          here("Saved Data", 
+               "bayes_predicted_model_wide.rds"))
+write_rds(pred_length_df,
+          here("Saved Data", 
+               "bayes_predicted_model.rds"))
+# png(filename =  here("Plots",
+#                      "von B Bayes",
+#                      "growth_curve_lt_bayes.png"), 
+#     width = 11, height = 8.5, units = "in", 
+#     res = 300)
+
 ggplot() + 
   geom_point(data = lt_slim, aes(x = age_est, y = tl_mm),
              alpha = 0.45, size = 3) +
@@ -326,27 +393,38 @@ ggplot() +
               aes(ymin = m_2.5,
                   ymax = m_97.5,
                   x = pred_age, y = m_50),
-              fill = "#39808f", alpha = 0.25) +  
+              fill = "#39808f", alpha = 0.25) + 
+  geom_line(data = pred_vb, aes(x = age, y = tl, 
+                                linetype = percentile), 
+            linewidth = 1) + 
+  scale_linetype_manual(
+    name = "Percentile", 
+    values = c(2:5)
+  ) +
   scale_x_continuous(breaks = seq(0, 26, 2)) + 
-  scale_y_continuous(breaks = seq(0, 700, 100)) + 
+  scale_y_continuous(breaks = seq(0, 1000, 100)) + 
   annotate(geom = "text",
            label = labels,
            parse = TRUE,
            size = 4,
            x = Inf, y = -Inf,
            hjust = 1.1, vjust = -0.5) + 
-  theme_classic(base_size = 15) + 
+  theme_classic(base_size = 15) +
+  theme(
+    legend.position = c(0.08, 0.9)
+  ) +
   labs(x = "Estimated Age (Yr)", 
        y = "Total Length (mm)") -> p
 
 
 
 p
-
-ggsave(filename = here("Plots",
-                       "von B Bayes",
-                       "growth_curve_lt_bayes.png"), 
-       plot = p, width = 11, height = 8.5)
+# 
+# 
+# ggsave(filename = here("Plots",
+#                        "von B Bayes",
+#                        "growth_curve_lt_bayes.png"), 
+#        plot = p, width = 11, height = 8.5)
 
 
 write_rds(p, here("Saved Plots", 
@@ -412,29 +490,29 @@ rand_length_df
 # ---- plot densities -----
 ggplot(rand_length_df, aes(x = rand_length)) + 
   geom_density(aes(
-    colour = age_pred_f
-    # fill = age_pred_f
+    # colour = age_pred_f
+    fill = age_pred_f
   ), alpha = 0.25, 
   linewidth = 0.8, 
-  # colour = "black"
+  colour = "black"
   ) + 
   scale_colour_viridis_d(begin = 0.25, end = 0.85, 
                          option = "D", "Estimated Age (Yr)") + 
-  # scale_fill_viridis_d(begin = 0.25, end = 0.85, 
-  #                      option = "D", "Estimated Age (Yr)") + 
+  scale_fill_viridis_d(begin = 0.25, end = 0.85,
+                       option = "D", "Estimated Age (Yr)") +
   theme_bw(base_size = 15) + 
   scale_x_continuous(breaks = seq(0, 1500, 100)) + 
   theme(panel.grid = element_blank(), 
-        legend.position = c(0.88, 0.86),
+        legend.position = c(0.86, 0.78),
         legend.background = element_blank(), 
         axis.text = element_text(colour = "black"), 
   ) +
   guides(
-    # fill = guide_legend(ncol = 2)
+    fill = guide_legend(ncol = 2),
     colour = guide_legend(ncol = 2)
   ) + 
   labs(x = "Total Length (mm)", 
-       y = "Density") -> p3
+       y = "p( Total Length (mm) | X)") -> p3
 p3
 ggsave(filename = here("Plots", 
                        "posterior distribution",
@@ -495,6 +573,33 @@ ggsave(filename = here("Plots",
 
 write_rds(p4, here("Saved Plots", 
                    "predicted_density_ridge_tornado_age_length.rds"))
+
+
+
+
+png(filename =  here("Plots",
+                     "von B Bayes",
+                     "growth_curve_lt_bayes_with_posterior.png"), 
+    width = 8.5, height = 11, units = "in", 
+    res = 300)
+
+p5 <- p / p4
+
+# p5
+print(p5)
+dev.off()
+
+png(filename =  here("Plots",
+                     "von B Bayes",
+                     "growth_curve_lt_bayes_with_posterior_stack.png"), 
+    width = 8.5, height = 11, units = "in", 
+    res = 300)
+
+p6 <- p / p3
+
+# p5
+print(p6)
+dev.off()
 # ---- prep to estimate age from a given length -----
 # 
 # 
