@@ -409,9 +409,13 @@ ggplot() +
            size = 4,
            x = Inf, y = -Inf,
            hjust = 1.1, vjust = -0.5) + 
-  theme_classic(base_size = 15) +
+  theme_bw(base_size = 15) +
   theme(
-    legend.position = c(0.08, 0.9)
+    legend.position = c(0.0725, 0.82), 
+    panel.grid = element_blank(),
+    plot.tag.position = c(0.11, 0.97),
+    legend.background = element_blank()
+    
   ) +
   labs(x = "Estimated Age (Yr)", 
        y = "Total Length (mm)") -> p
@@ -506,13 +510,14 @@ ggplot(rand_length_df, aes(x = rand_length)) +
         legend.position = c(0.86, 0.78),
         legend.background = element_blank(), 
         axis.text = element_text(colour = "black"), 
+        plot.tag.position = c(0.11, 0.97)
   ) +
   guides(
     fill = guide_legend(ncol = 2),
     colour = guide_legend(ncol = 2)
   ) + 
   labs(x = "Total Length (mm)", 
-       y = "p( Total Length (mm) | X)") -> p3
+       y = "p(Total Length (mm) | X)") -> p3
 p3
 ggsave(filename = here("Plots", 
                        "posterior distribution",
@@ -595,7 +600,8 @@ png(filename =  here("Plots",
     width = 8.5, height = 11, units = "in", 
     res = 300)
 
-p6 <- p / p3
+p6 <- p / p3 + 
+  plot_annotation(tag_levels = "a")
 
 # p5
 print(p6)

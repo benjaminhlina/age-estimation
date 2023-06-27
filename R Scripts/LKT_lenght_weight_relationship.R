@@ -14,6 +14,7 @@
   library(lemon)
   library(lme4)
   library(openxlsx)
+  library(patchwork)
   library(readr)
   library(stringr)
   library(tibble)
@@ -238,7 +239,7 @@ han_lw_wide <- han_lw %>%
   mutate(
     log_a = (as.numeric(gsub("\\–", "", log_a)) * -1),
     b = as.numeric(b)
-    )
+  )
 
 han_lw_wide
 
@@ -257,7 +258,7 @@ han_pred <- expand_grid(
 
 han_pred_max <- han_pred %>% 
   filter(wt < 5250 & 
-           percentile %in% c("25", "50", "75", "97.5"))
+           percentile %in% c("25", "50", "75"))
 
 # ---- compare percentiles -----
 pap_coef <- tibble(
@@ -308,8 +309,8 @@ fitdistrplus::descdist(dat_k_50$kn)
 t <- fitdistrplus::fitdist(data = dat_k_50$kn, distr = "gamma",
                            method = "mme")
 ts <- fitdistrplus::fitdist(data = dat_k_50$kn, distr = "norm", 
-                           # method = "mme"
-                           )
+                            # method = "mme"
+)
 
 plot(t)
 plot(ts)
@@ -354,6 +355,9 @@ kn_sum <- dat_k_50 %>%
 kn_sum
 
 
+dat_k_50 %>% 
+  filter(kn > 1)
+
 # ---- plot ------ 
 ggplot(data = predicts) + 
   geom_point(aes(x = tl_log, y = wt_log, 
@@ -397,6 +401,52 @@ ggsave(here("Plots",
 
 
 
+# ---- plot ------ 
+predicts <- predicts %>% 
+  filter(basin != is.na(basin))
+
+ggplot(data = predicts) + 
+  geom_point(aes(x = tl_log, y = wt_log, 
+                 colour = basin), 
+             size = 3) + 
+  # stat_smooth(geom = "line", method = "lm",
+  #             aes(x = tl_log, y = wt_log),
+  #             colour = "black",
+  #             linewidth = 1, se = TRUE) +
+  geom_line(colour = "black", linewidth = 1, aes(x = tl_log, y = fit)) +
+  geom_ribbon( 
+    aes(ymin = lower,
+        ymax = upper,
+        x = tl_log, y = fit), alpha = 0.25) +
+  scale_colour_viridis_d(name = "Year", 
+                         begin = 0.17, end = 0.8, alpha = 0.7) + 
+  theme_classic(base_size = 15) + 
+  theme(
+    axis.text = element_text(colour = "black"), 
+    legend.position = c(0.06, 0.90), 
+    legend.background = element_blank()
+  ) + 
+  ggpmisc::stat_poly_eq(aes(x = tl_log, y = wt_log,
+                            label = paste(after_stat(eq.label),
+                                          after_stat(rr.label), sep = "*\", \"*")), 
+                        label.x = 0.03, 
+                        label.y = 0.80) +
+  labs(
+    x = expression(paste(Log[10], "[Total Length (mm)]" )), 
+    y = expression(paste(Log[10], "[Weight  (g)]" ))
+  ) -> p1
+
+p1
+
+ggsave(here("Plots",
+            "length weight relationship",
+            "LKT_length_weight_regression_basin.png"), 
+       plot = p, 
+       width = 11, 
+       height = 8.5)
+
+
+
 
 glimpse(predicts)
 # ---- back transform fit and confidence intervals 
@@ -417,10 +467,17 @@ predicts <- predicts %>%
 
 glimpse(lt_tot)
 
+glimpse(han_pred_max)
+
+han_pred_max <- han_pred_max %>% 
+  mutate(
+    percentile = forcats::fct_rev(percentile)
+  )
+
 # ---- plot back transformed ----- 
 ggplot(data = predicts) + 
   geom_point(aes(x = tl_mm, y = wt_g, 
-                 colour = year), 
+                 colour = basin), 
              size = 3) + 
   # stat_smooth(geom = "line", method = "lm",
   #             aes(x = tl_log, y = wt_log),
@@ -433,27 +490,33 @@ ggplot(data = predicts) +
         x = tl_mm, y = anti_fit), alpha = 0.25) +
   geom_line(
     data = han_pred_max, 
+    linewidth = 1,
     aes(x = tl_mm, y = wt, linetype = percentile)
   ) + 
-  scale_colour_viridis_d(name = "Year", 
-                         begin = 0.17, end = 0.8, alpha = 0.7) + 
+  scale_colour_viridis_d(name = "Basin", 
+                         begin = 0.25, end = 0.75, option = "D", 
+                         # alpha = 0.7
+                         alpha = 0.7
+  ) + 
   scale_y_continuous(breaks = seq(0, 5000, 500)) +
   scale_x_continuous(breaks = seq(100, 700, 100)) + 
-  theme_classic(base_size = 15) + 
+  theme_bw(base_size = 15) + 
   theme(
     axis.text = element_text(colour = "black"), 
-    legend.position = c(0.06, 0.8), 
-    legend.background = element_blank()
+    legend.position = c(0.07, 0.65), 
+    legend.background = element_blank(), 
+    panel.grid = element_blank(),
+    plot.tag.position  = c(0.11, 0.97)
   ) + 
   scale_linetype_manual(
     name = "Percentile", 
     values = c(2:5)
   ) +
   ggpmisc::stat_poly_eq(aes(x = tl_log, y = wt_log,
-                            label = paste(after_stat(eq.label),
+                            label = paste(after_stat(eq.label), 
                                           after_stat(rr.label), sep = "*\", \"*")),
-                        label.x = 0.02,
-                        label.y = 0.80) +
+                        label.x = 0.95,
+                        label.y = 0.03) +
   labs(
     x = "Total Length (mm)", 
     y = "Weight  (g)"
@@ -471,16 +534,22 @@ ggsave(here("Plots",
 # ---- plot Kn vs length ----- 
 ggplot(data = dat_k_50, aes(y = kn, x = tl_mm)) +
   geom_hline(yintercept = 1, linetype = 2) + 
-  # stat_smooth(method = "lm") + 
-  geom_point(size = 4, aes(colour = basin)
-             ) + 
+  stat_smooth(method = "lm", colour = "black") +
+  geom_point(size = 3, aes(colour = basin)
+  ) + 
   scale_colour_viridis_d(name = "Basin", 
-                         begin = 0.35, end = 0.75, alpha = 0.7) +
+                         begin = 0.25, end = 0.75, alpha = 0.7) +
   scale_x_continuous(breaks = seq(100, 700, 100)) + 
   theme_bw(base_size = 15) + 
   theme(panel.grid = element_blank(), 
-        legend.position = c(0.07, 0.90)
+        legend.position = "none",
+        plot.tag.position  = c(0.11, 0.97)
   ) +
+  ggpmisc::stat_poly_eq(aes(x = kn, y = tl_mm,
+                            label = paste(after_stat(eq.label), 
+                                          after_stat(rr.label), sep = "*\", \"*")),
+                        label.x = 0.95,
+                        label.y = 0.03) +
   labs(
     x = "Total Length (mm)", 
     y = expression(K[n]) 
@@ -494,18 +563,21 @@ ggsave(here("Plots",
        width = 11, 
        height = 8.5)
 
+
+
+
 ggplot(data = dat_k, aes(y = kn, x = tl_mm)) +
   # geom_hline(yintercept = 1, linetype = 2) + 
   # stat_smooth(method = "lm") + 
   geom_point(size = 4, aes(colour = basin)
-             ) + 
+  ) + 
   scale_colour_viridis_d(name = "Basin", 
                          begin = 0.35, end = 0.75, alpha = 0.7) +
   scale_x_continuous(breaks = seq(100, 700, 100)) + 
   facet_wrap(.~ percentile, scales = "free_y") + 
   theme_bw(base_size = 15) + 
   theme(panel.grid = element_blank(), 
-        legend.position = c(0.05, 0.91)
+        legend.position = "none"
   ) +
   labs(
     x = "Total Length (mm)", 
@@ -523,5 +595,16 @@ ggsave(here("Plots",
 
 
 unique(han$metric)
+
+
+p5 <- p2 / p3 + 
+  plot_annotation(tag_levels = "a")
+
+# p5
+ggsave(here("Plots",
+            "length weight relationship",
+            "LKT_length_weight_model_w_kn.png"), 
+       width = 8.5, height = 11, units = "in", plot = p5, 
+       dpi = 300)
 
 
