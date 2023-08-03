@@ -2,19 +2,19 @@
 {
   library(broom)
   library(broom.mixed)
-  library(boot)
   library(car)
   library(data.table)
   library(dplyr)
-  library(FSA)
-  library(FSAdata)
+  library(emmeans)
   library(ggplot2)
   library(here)
   library(lubridate)
   library(lemon)
   library(lme4)
+  library(mgcv)
   library(openxlsx)
   library(patchwork)
+  library(purrr)
   library(readr)
   library(stringr)
   library(tibble)
@@ -175,6 +175,16 @@ car::Anova(m)
 anova(m)
 summary(m)
 
+mod.emt <- emtrends(m, ~3, var = "tl_log")
+mod.emt
+sig_3 <- test(mod.emt, null = 3, side = ">")
+
+sig_3
+sig_3 %>% 
+  as_tibble() %>% 
+  janitor::clean_names() %>% 
+  write.xlsx(., here("Results", 
+                     "tl_wt_allometric_vs_isometric_results.xlsx"))
 # car::Anova(m2)
 # anova(m2)
 # summary(m2)
@@ -217,6 +227,7 @@ predicts <- data.frame(dat_2, fits) %>%
     lower = fit - 1.96 * se.fit,
     upper = fit + 1.96 * se.fit
   )
+
 
 # ---- use Hansen et al. parameters to estimate quantiles ---- 
 glimpse(han)
@@ -281,20 +292,20 @@ han_pred_50 <- han_pred %>%
 
 han_pred
 
+lt_tot_na <- lt_tot %>% 
+  filter(wt_g != is.na(wt_g))
 
 # join with lt_tot by tl_mm, han_pred has to be from every mm 
-dat_k <- lt_tot %>% 
-  left_join(han_pred, by = "tl_mm")
+dat_k <- lt_tot_na %>% 
+  left_join(han_pred_50, by = "tl_mm")
 
 # calculate Kn by dividing our observed weights to 50% predicted weights 
-
 
 dat_k <- dat_k %>% 
   mutate(
     kn = wt_g / wt
   ) %>% 
-  filter(kn != is.na(kn) & basin != is.na(basin))
-
+  filter(basin != is.na(basin))
 
 # ---- evaulate kn disturbion and calculate general stats ---- 
 ggplot(data = dat_k, aes(x = kn)) + 
@@ -303,6 +314,7 @@ ggplot(data = dat_k, aes(x = kn)) +
 
 dat_k_50 <- dat_k %>% 
   filter(percentile %in% "50")
+dat_k_50
 # ---- create model to assess if Kn changes with length ----- 
 fitdistrplus::descdist(dat_k_50$kn)
 
@@ -318,22 +330,87 @@ plot(ts)
 # ---- model using GAMMA ---- 
 m5 <- glm(kn ~ tl_mm * basin, data = dat_k_50,
           contrasts = list(basin = "contr.sum"),
-          
-          family = Gamma(link = "identity"))
+          family = Gamma(link = "identity"), )
+
+
+m6 <- update(m5, .~ tl_mm - basin)
+m7 <- update(m5, .~ basin )
+
+Anova(m7, type = "III")
+
+
+
+lt_tot %>% 
+  filter(wt_g != is.na(wt_g))
+# create model list for model selection ------
+model_list <- list(m5, m6, m7
+)
+# give the elements useful names
+names(model_list) <- c("m5", "m6", "m7")
+
+
+# get the summaries using `lapply
+
+summary_list <- lapply(model_list, function(x) tidy(x, parametric = TRUE))
+glance_list <- lapply(model_list, glance)
+
+glance_summary <- map_df(glance_list, ~as.data.frame(.x), .id = "id") %>% 
+  mutate(model = lapply(model_list, formula) %>%
+           as.character() 
+  ) %>% 
+  dplyr::select(model, id:df.residual) %>% 
+  arrange(AIC) %>% 
+  mutate( 
+         delta_AIC = AIC - first(AIC), 
+         AIC_weight = exp(-0.5 * delta_AIC) / sum(exp(-0.5 * delta_AIC))
+  ) %>% 
+  dplyr::select(model:AIC, delta_AIC, AIC_weight, BIC:df.residual)
+
+
+glance_summary
 
 
 par(mfrow = c(2, 2))
-plot(m5)
+plot(m6)
 par(mfrow = c(1, 1))
-res <- DHARMa::simulateResiduals(m5)
-plot(residuals(m5))
-hist(residuals(m5))
+res <- DHARMa::simulateResiduals(m6)
+plot(residuals(m6))
+hist(residuals(m6))
 plot(res)
 
 
-car::Anova(m5, type = "III")
-summary(m5)
+car::Anova(m6, type = "III")
+summary(m6)
 
+
+
+
+# ------------------ ONESIDED TEST OF IF THE RATIO IS GREATER THAN 1 -------
+
+
+t.test(dat_k_50$kn, mu = 1, alternative = "less") 
+kn_test <- tapply(dat_k_50$kn, dat_k_50$basin, function(x) t.test(x, mu = 1, alternative = "less")) 
+
+
+kn_test_sum <- kn_test %>% 
+  imap(~ broom::tidy(.x)) %>% 
+  bind_rows(.id = "basin")
+kn_test_sum
+
+dat_k_50 %>% 
+  group_by(
+    basin
+  ) %>% 
+  summarise(
+    kn_m = mean(kn),
+    sem = sd(kn) / sqrt(n())
+  ) %>% 
+  ungroup() %>% 
+  write.xlsx(., here("Results", 
+                     "kn_mean.xlsx"))
+
+write.xlsx(kn_test_sum, here("Results", 
+                             "kn_t_test_basin.xlsx"))
 # Kn changes with length 
 
 # ---- summary table of Kn ---- 
@@ -531,11 +608,19 @@ ggsave(here("Plots",
        width = 11, 
        height = 8.5)
 
+
 # ---- plot Kn vs length ----- 
-ggplot(data = dat_k_50, aes(y = kn, x = tl_mm)) +
+1 - (m6$deviance/m6$null.deviance)
+# ----- create - predicted dataframe ------
+
+
+ggplot(
+  data = dat_k_50, aes(y = kn, x = tl_mm)
+) +
   geom_hline(yintercept = 1, linetype = 2) + 
-  stat_smooth(method = "lm", colour = "black") +
-  geom_point(size = 3, aes(colour = basin)
+  stat_smooth(method = "lm", colour = "black", se = TRUE) +
+  geom_point(data = dat_k_50, aes(y = kn, x = tl_mm, colour = basin), 
+             size = 3
   ) + 
   scale_colour_viridis_d(name = "Basin", 
                          begin = 0.25, end = 0.75, alpha = 0.7) +
@@ -545,10 +630,10 @@ ggplot(data = dat_k_50, aes(y = kn, x = tl_mm)) +
         legend.position = "none",
         plot.tag.position  = c(0.11, 0.97)
   ) +
-  ggpmisc::stat_poly_eq(aes(x = kn, y = tl_mm,
-                            label = paste(after_stat(eq.label), 
+  ggpmisc::stat_poly_eq(aes(x = tl_mm, y = kn,
+                            label = paste(after_stat(eq.label),
                                           after_stat(rr.label), sep = "*\", \"*")),
-                        label.x = 0.95,
+                        label.x = 0.98,
                         label.y = 0.03) +
   labs(
     x = "Total Length (mm)", 
@@ -597,14 +682,42 @@ ggsave(here("Plots",
 unique(han$metric)
 
 
+ggplot(data = dat_k_50, aes(x = basin, y = kn)) + 
+  geom_jitter(aes(colour = basin), width = 0.1, size = 3) +
+  geom_hline(yintercept = 1, linetype = 2) + 
+  scale_colour_viridis_d(name = "Basin", 
+                         begin = 0.25, end = 0.75, alpha = 0.7) +
+  # scale_x_continuous(breaks = seq(100, 700, 100)) + 
+  theme_bw(base_size = 15) + 
+  theme(panel.grid = element_blank(), 
+        legend.position = "none",
+        plot.tag.position  = c(0.11, 0.97)
+  ) +
+  labs(
+    x = "Capture Basin", 
+    y = expression(K[n]) 
+  ) -> p6
+
+p6
+
+
 p5 <- p2 / p3 + 
-  plot_annotation(tag_levels = "a")
+  plot_annotation(tag_levels = "a", 
+                  tag_suffix = ")")
+p7 <- p2 / p6 + 
+  plot_annotation(tag_levels = "a", 
+                  tag_suffix = ")")
 
 # p5
 ggsave(here("Plots",
             "length weight relationship",
             "LKT_length_weight_model_w_kn.png"), 
        width = 8.5, height = 11, units = "in", plot = p5, 
+       dpi = 300)
+ggsave(here("Plots",
+            "length weight relationship",
+            "LKT_length_weight_model_w_kn_group.png"), 
+       width = 8.5, height = 11, units = "in", plot = p7, 
        dpi = 300)
 
 

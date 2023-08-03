@@ -23,6 +23,11 @@ lt_slim <- read_rds(here("Saved Data",
                          "cleaned_length_at_age_raw.rds"))
 
 glimpse(lt_slim)
+lt_slim %>% 
+  group_by(cr) %>% 
+  summarise(
+    n = n()
+  )
 
 lt_slim <- lt_slim %>% 
   mutate(
@@ -413,7 +418,7 @@ ggplot() +
   theme(
     legend.position = c(0.0725, 0.82), 
     panel.grid = element_blank(),
-    plot.tag.position = c(0.11, 0.97),
+    plot.tag.position = c(0.12, 0.97),
     legend.background = element_blank()
     
   ) +
@@ -510,7 +515,7 @@ ggplot(rand_length_df, aes(x = rand_length)) +
         legend.position = c(0.86, 0.78),
         legend.background = element_blank(), 
         axis.text = element_text(colour = "black"), 
-        plot.tag.position = c(0.11, 0.97)
+        plot.tag.position = c(0.12, 0.97)
   ) +
   guides(
     fill = guide_legend(ncol = 2),
@@ -601,7 +606,8 @@ png(filename =  here("Plots",
     res = 300)
 
 p6 <- p / p3 + 
-  plot_annotation(tag_levels = "a")
+  plot_annotation(tag_levels = "a", 
+                  tag_suffix = ")")
 
 # p5
 print(p6)

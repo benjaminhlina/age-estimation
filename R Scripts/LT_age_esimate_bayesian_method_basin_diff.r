@@ -340,6 +340,11 @@ mfl <- model_fit %>%
                names_to = "coefficient",
                values_to = "est")
 mfl
+model_fit %>% 
+  write_rds(here("Saved data", 
+                 "von_b_50_coef.rds"))
+
+
 # extract each parmater indivually to put von B. curve exquation on plot
 
 linf <- formatC(model_fit$linf, format="f", digits = 0)
@@ -434,7 +439,7 @@ ggplot() +
 
 
 
-# p
+p
 
 # ggsave(filename = here("Plots",
 #                        "von B Bayes",
