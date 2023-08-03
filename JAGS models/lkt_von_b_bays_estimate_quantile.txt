@@ -1,0 +1,22 @@
+model {
+  linf ~ dunif(100, 800)
+  k ~ dunif(0, 0.5)
+  t0 ~ dunif(-1.25, 0.5)
+  sig ~ dunif(0, 2)
+  sigma <- exp(sig/2)
+  tau <- pow(sigma, -2)
+  p ~ dunif(0, 1)
+  for (i in 1:n_obs) {
+    length[i] ~ dlnorm(log(length_hat[i]), 1/sig^2)
+    length_hat[i] <- (linf) * (1 - exp(-k * (age[i] - t0)))
+    w[i] ~ dexp(tau)
+    me[i] <- (1 - 2 * p)/(p * (1 - p)) * w[i] + length_hat[i]
+    pe[i] <- (p * (1 - p) * tau)/(2 * w[i])
+    y[i] ~ dnorm(me[i], pe[i])
+  }
+  for (i in 1:n_pred) {
+    pred_length[i, 1] <- linf * (1 - exp(-k * (pred_age[i] - t0)))
+    epi[i] ~ dlnorm(0, 1/sig^2)
+    rand_length[i, 1] <- epi[i] * pred_length[i, 1]
+  }
+}

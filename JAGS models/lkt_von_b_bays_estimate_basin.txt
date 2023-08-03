@@ -4,14 +4,20 @@ model {
   t0 ~ dunif(-1.25, 0.5)
   sig ~ dunif(0, 2)
   linf_diff ~ dunif(-500, 500)
+  k_diff ~ dunif(-0.05, 0.05)
+  t0_diff ~ dunif(-0.2, 0.2)
   for (i in 1:n_obs) {
-    length[i] ~ dlnorm(log(length_hat[i]), 1/sig^2)
-    length_hat[i] <- (linf + linf_diff * basin[i]) * (1 - exp(-k * (age[i] - t0)))
+    length[i] ~ dlnorm(log(length_hat[i]), (1/sig^2))
+    length_2[i] ~ dlnorm(log(length_hat_2[i]), (1/sig^2))
+    length_3[i] ~ dlnorm(log(length_hat_3[i]), (1/sig^2))
+    length_hat[i] <- (linf + linf_diff * basin[i]) * (1 - exp((-k * (age[i] - t0))))
+    length_hat_2[i] <- (linf) * (1 - exp((-k + k_diff * basin[i]) * (age[i] - t0)))
+    length_hat_3[i] <- (linf) * (1 - exp(-k * (age[i] - (t0 + t0_diff * basin[i]))))
   }
   for (i in 1:n_pred) {
     pred_length[i, 1] <- linf * (1 - exp(-k * (pred_age[i] - t0)))
-    pred_length[i, 2] <- (linf + linf_diff) * (1 - exp(-k * (pred_age[i] - t0)))
-    pred_length[i, 3] <- (linf - linf_diff) * (1 - exp(-k * (pred_age[i] - t0)))
+    pred_length[i, 2] <- (linf + linf_diff) * (1 - exp((-k + k_diff) * (pred_age[i] - (t0 + t0_diff))))
+    pred_length[i, 3] <- (linf - linf_diff) * (1 - exp((-k - k_diff) * (pred_age[i] - (t0 - t0_diff))))
     epi[i] ~ dlnorm(0, 1/sig^2)
     rand_length[i, 1] <- epi[i] * pred_length[i, 1]
     rand_length[i, 2] <- epi[i] * pred_length[i, 2]
